@@ -1,0 +1,11 @@
+schema: ./schema.graphql
+generates:
+  gen/graphql.ts:
+    plugins:
+      - typescript
+      - typescript-operations:
+          strictScalars: true
+          scalars:
+            Date: string
+            DateTime: string
+      - typed-document-node
