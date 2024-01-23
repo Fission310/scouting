@@ -6,7 +6,6 @@ export type Options = {
     rankingStart: number;
     numComments: number;
     eventCode: string;
-    eventName: string;
     year: string;
     rankingSheet: string;
     formSheet: string;
@@ -23,7 +22,7 @@ export enum API {
 export type DataColumn = {
     column: number;
     query: string;
-    getData: (data: any) => string;
+    getData: (data: string) => string;
     type: API;
 };
 
@@ -38,7 +37,6 @@ export class Scouting {
     RANKING_START: number;
     NUM_COMMENTS: number;
     EVENT_CODE: string;
-    EVENT_NAME: string;
     RANKINGS_SHEET: GoogleAppsScript.Spreadsheet.Sheet;
     FORM_SHEET: GoogleAppsScript.Spreadsheet.Sheet;
     YEAR: string;
@@ -55,7 +53,6 @@ export class Scouting {
         this.RANKING_START = options.rankingStart;
         this.NUM_COMMENTS = options.numComments;
         this.EVENT_CODE = options.eventCode;
-        this.EVENT_NAME = options.eventName;
         this.YEAR = options.year;
         this.AUTH = options.auth;
 
@@ -79,16 +76,16 @@ export class Scouting {
         for (const data of this.dataColumns) {
             for (let i = 0; i < this.NUM_TEAMS; i++) {
                 const teamNumber = Scouting.getCell(this.RANKINGS_SHEET, i + this.START_ROW, this.TEAM_NUM_COLUMN);
-                const query = data.query.replace('{TEAM_NUMBER}', teamNumber).replace('{EVENT_CODE}', this.EVENT_CODE).replace('{YEAR}', this.YEAR);
+                const query = data.query.replace(/{TEAM_NUMBER}/g, teamNumber).replace(/{EVENT_CODE}/g, this.EVENT_CODE).replace(/{YEAR}/g, this.YEAR);
                 switch (data.type) {
                     case API.SCOUT:
                         let response = Scouting.getFTCScout(query);
-                        Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, data.column, data.getData(JSON.parse(response.getContentText())));
+                        Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, data.column, data.getData(response.getContentText()));
                         break;
                     case API.EVENTS:
                         response = Scouting.getFTCEvents(query, this.AUTH);
                         if (response.getResponseCode() == 200) {
-                            Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, data.column, data.getData(JSON.parse(response.getContentText())));
+                            Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, data.column, data.getData(response.getContentText()));
                         }
                         break;
                 }
@@ -102,13 +99,13 @@ export class Scouting {
             for (let i = 0; i < this.NUM_TEAMS; i++) {
                 if (teamNumber == Scouting.getCell(this.RANKINGS_SHEET, i + this.START_ROW, this.TEAM_NUM_COLUMN)) {
                     const match = parseInt(Scouting.getCell(this.FORM_SHEET, 2, 3));
-                    for (let j = 0; j < this.formColumns.length; j++) {
+                    for (let j = 0; j < Object.keys(this.formColumns).length; j++) {
                         const column = this.formColumns[Scouting.getCell(this.FORM_SHEET, 1, j + 4)];
                         Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, column, Scouting.getCell(this.FORM_SHEET, 2, j + 4));
                     }
-                    Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + match - 1, Scouting.getCell(this.FORM_SHEET, 2, 3 + this.NUM_COMMENTS + this.formColumns.length));
+                    Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + match - 1, Scouting.getCell(this.FORM_SHEET, 2, 4 + this.NUM_COMMENTS + Object.keys(this.formColumns).length));
                     for (let j = 0; j < this.NUM_COMMENTS; j++) {
-                        Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + j + this.NUM_MATCHES, Scouting.getCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + j + this.NUM_MATCHES) + 'Match ' + match + ': ' + Scouting.getCell(this.FORM_SHEET, 2, j + 4 + this.formColumns.length) + ' ');
+                        Scouting.setCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + j + this.NUM_MATCHES, Scouting.getCell(this.RANKINGS_SHEET, i + this.START_ROW, this.RANKING_START + j + this.NUM_MATCHES) + 'Match ' + match + ': ' + Scouting.getCell(this.FORM_SHEET, 2, j + 4 + Object.keys(this.formColumns).length) + ' ');
                     }
                     break;
                 }
@@ -127,6 +124,7 @@ export class Scouting {
     }
 
     static getFTCScout(query: string) {
+        query = JSON.stringify({ query: query });
         const options = {
             method: 'post',
             headers: {
@@ -151,12 +149,12 @@ export class Scouting {
             },
             contentType: 'application/json'
         } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
-        const response = UrlFetchApp.fetch(url, options);
+        const response = UrlFetchApp.fetch('http://ftc-api.firstinspires.org/v2.0/' + url, options);
         return response;
     }
 
     static toUrlParams(params: Record<string, string>) {
-        let url = '';
+        let url = '?';
         for (const param of Object.keys(params)) {
             url += param + '=' + params[param] + '&';
         }
