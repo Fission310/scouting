@@ -71,9 +71,11 @@ export class Scouting {
         this.FORM_SHEET = formSheet;
     }
 
-    load() {
-        this.formData();
-        for (const data of this.dataColumns) {
+    load(which: number) {
+        if (which == this.dataColumns.length) {
+            this.formData();
+        } else {
+            const data = this.dataColumns[which];
             for (let i = 0; i < this.NUM_TEAMS; i++) {
                 const teamNumber = Scouting.getCell(this.RANKINGS_SHEET, i + this.START_ROW, this.TEAM_NUM_COLUMN);
                 const query = data.query.replace(/{TEAM_NUMBER}/g, teamNumber).replace(/{EVENT_CODE}/g, this.EVENT_CODE).replace(/{YEAR}/g, this.YEAR);
